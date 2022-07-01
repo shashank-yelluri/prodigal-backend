@@ -1,6 +1,7 @@
 const express = require("express");
 const assert = require("assert");
 const MongoClient = require("mongodb").MongoClient;
+const redis = require("redis");
 
 var app = express();
 
@@ -12,10 +13,17 @@ var db;
 
 MongoClient.connect(url, function (err, client) {
   assert.equal(null, err);
-  console.log("Connected successfully to DB");
+  console.log("Connected successfully to Databse");
 
   db = client.db(dbName);
 });
+
+const client = redis.createClient(6379);
+
+client
+  .connect()
+  .then(() => console.log("Connected successfully to Redis"))
+  .catch((err) => console.log(err));
 
 // Middlewares
 app.param("student_id", async (req, res, next, id) => {
@@ -26,6 +34,22 @@ app.param("student_id", async (req, res, next, id) => {
   req.student = student;
   next();
 });
+
+function cache(req, res, next) {
+  client
+    .get("students")
+    .then((response) => {
+      if (response === null) {
+        next();
+      } else {
+        res.json(JSON.parse(response));
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+      next();
+    });
+}
 
 // Task-01
 app.get("/students", async (req, res) => {
@@ -44,10 +68,9 @@ app.get("/students", async (req, res) => {
   res.json(payload);
 });
 // Task-01 Optimized version
-app.get("/students/opt", async (req, res) => {
+app.get("/students/opt", cache, async (req, res) => {
   const payload = [];
 
-  // We can directly return the response using toArray().[ Did this becoz of the column name thing. ]
   await db
     .collection("students")
     .find({})
@@ -57,7 +80,12 @@ app.get("/students/opt", async (req, res) => {
         student_name: student.name,
       });
     });
+  const result = JSON.stringify(payload);
 
+  client
+    .setEx("students", 3600, result)
+    .then(() => console.log("Key set successfully!"))
+    .catch((err) => console.log(err));
   res.json(payload);
 });
 
