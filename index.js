@@ -17,6 +17,16 @@ MongoClient.connect(url, function (err, client) {
   db = client.db(dbName);
 });
 
+// Middlewares
+app.param("student_id", async (req, res, next, id) => {
+  const student = await db
+    .collection("students")
+    .findOne({ _id: parseInt(id) });
+
+  req.student = student;
+  next();
+});
+
 // Task-01
 app.get("/students", async (req, res) => {
   const students = await db.collection("students").find({}).toArray();
@@ -30,6 +40,23 @@ app.get("/students", async (req, res) => {
     };
     payload.push(record);
   }
+
+  res.json(payload);
+});
+// Task-01 Optimized version
+app.get("/students/opt", async (req, res) => {
+  const payload = [];
+
+  // We can directly return the response using toArray().[ Did this becoz of the column name thing. ]
+  await db
+    .collection("students")
+    .find({})
+    .forEach((student) => {
+      payload.push({
+        student_id: student._id,
+        student_name: student.name,
+      });
+    });
 
   res.json(payload);
 });
@@ -61,6 +88,29 @@ app.get("/student/:student_id/classes", async (req, res) => {
 
     payload.classes.push(record);
   }
+
+  res.json(payload);
+});
+
+// Task-02 Optimized version
+app.get("/student/:student_id/classes/opt", async (req, res) => {
+  const student = req.student;
+
+  const payload = {
+    student_id: student._id,
+    student_name: student.name,
+    classes: [],
+  };
+
+  await db
+    .collection("grades")
+    .find({ student_id: student._id })
+    .forEach((grade) => {
+      const classs = {
+        class_id: grade.class_id,
+      };
+      payload.classes.push(classs);
+    });
 
   res.json(payload);
 });
@@ -98,6 +148,38 @@ app.get("/student/:student_id/performance", async (req, res) => {
 
     payload.classes.push(record);
   }
+
+  res.json(payload);
+});
+
+// Task-03 Optimized version
+app.get("/student/:student_id/performance/opt", async (req, res) => {
+  const student = req.student;
+
+  const payload = {
+    student_id: student._id,
+    student_name: student.name,
+    classes: [],
+  };
+
+  await db
+    .collection("grades")
+    .aggregate([
+      { $match: { student_id: student._id } },
+      { $unwind: "$scores" },
+      {
+        $group: {
+          _id: "$class_id",
+          total: { $sum: "$scores.score" },
+        },
+      },
+    ])
+    .forEach((doc) => {
+      payload.classes.push({
+        class_id: doc._id,
+        total_marks: Math.round(doc.total),
+      });
+    });
 
   res.json(payload);
 });
@@ -150,8 +232,73 @@ app.get("/class/:class_id/students", async (req, res) => {
   res.json(payload);
 });
 
+// Task-05 Optimized version
+app.get("/class/:class_id/students/opt", async (req, res) => {
+  const id = req.params["class_id"];
+
+  const payload = {
+    class_id: parseInt(id),
+    students: [],
+  };
+
+  await db
+    .collection("grades")
+    .find({ class_id: parseInt(id) })
+    .forEach((grade) => {
+      payload.students.push({
+        student_id: grade.student_id,
+      });
+    });
+
+  res.json(payload);
+});
+
 // Task-06
 app.get("/class/:class_id/performance", async (req, res) => {
+  const id = req.params["class_id"];
+
+  const grades = await db
+    .collection("grades")
+    .find({ class_id: parseInt(id) })
+    .toArray();
+
+  const payload = {
+    class_id: parseInt(id),
+    students: [],
+  };
+
+  for (let index = 0; index < grades.length; index++) {
+    const student = await db
+      .collection("students")
+      .find({ _id: grades[index]["student_id"] })
+      .toArray();
+
+    const marks = await db
+      .collection("grades")
+      .find({ class_id: parseInt(id), student_id: grades[index]["student_id"] })
+      .toArray();
+
+    const scores = marks[0]["scores"];
+
+    let total = 0;
+    for (let j = 0; j < scores.length; j++) {
+      total = total + scores[j]["score"];
+    }
+
+    const data = {
+      student_id: grades[index]["student_id"],
+      student_name: student[0]["name"],
+      total_marks: Math.round(total),
+    };
+
+    payload.students.push(data);
+  }
+
+  res.json(payload);
+});
+
+// Task-06 Optimized version
+app.get("/class/:class_id/performance/opt", async (req, res) => {
   const id = req.params["class_id"];
 
   const grades = await db
