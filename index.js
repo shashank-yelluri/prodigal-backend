@@ -414,4 +414,6 @@ app.get("/class/:class_id/student/:student_id", async (req, res) => {
   res.json(payload);
 });
 
-app.listen(3001, () => console.log("Server started running on port 3001 !"));
+app.listen(process.env.PORT || 3001, () =>
+  console.log("Server started running on port 3001 !")
+);
