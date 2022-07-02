@@ -1,4 +1,4 @@
 # prodigal-backend
 
-## Production link
+## production link
 https://prodigal-backend.herokuapp.com/
