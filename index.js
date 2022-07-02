@@ -18,7 +18,15 @@ MongoClient.connect(url, function (err, client) {
   db = client.db(dbName);
 });
 
-const client = redis.createClient(6379);
+// const client = redis.createClient(6379);
+const password = "P5DwCsZCrOSGXxVjpVnv4EWoa6QHFT22";
+
+const client = redis.createClient({
+  host: "redis-18567.c301.ap-south-1-1.ec2.cloud.redislabs.com",
+  port: 18567,
+  no_ready_check: true,
+  auth_pass: password,
+});
 
 client
   .connect()
