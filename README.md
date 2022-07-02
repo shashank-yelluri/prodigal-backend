@@ -1,4 +1,4 @@
 # prodigal-backend
 
 ## Production link
-https://prodigal-backend.herokuapp.com/students
+https://prodigal-backend.herokuapp.com/
