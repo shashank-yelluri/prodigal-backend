@@ -51,6 +51,12 @@ function cache(req, res, next) {
     });
 }
 
+app.get("/", (req, res) => {
+  res.json({
+    status: "success",
+  });
+});
+
 // Task-01
 app.get("/students", async (req, res) => {
   const students = await db.collection("students").find({}).toArray();
